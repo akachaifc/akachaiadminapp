@@ -26,7 +26,8 @@ const firebaseConfig = {
 // Add your email here to automatically become an Admin, bypassing database checks.
 const AUTO_ADMIN_EMAILS = [
     "akachaifc6@gmail.com", 
-    "secretary.akachaifc@gmail.com"
+    "secretary.akachaifc@gmail.com",
+    "president.akachaifc@gmail.com"
 ];
 
 // --- EMAILJS CONFIGURATION ---
@@ -405,7 +406,14 @@ export const FirebaseService = {
   },
 
   updateSocialStats: async (stats: SocialStats[]): Promise<void> => {
-      // Implementation omitted 
+      if (!db) throw new Error("Firebase DB not initialized");
+      const batch = db.batch();
+      stats.forEach(stat => {
+          // We use the platform name as the ID for simplicity
+          const ref = db.collection('social_stats').doc(stat.platform);
+          batch.set(ref, { ...stat, lastUpdated: new Date().toISOString() }, { merge: true });
+      });
+      await batch.commit();
   },
 
   getSeasonStats: async (): Promise<SeasonStats> => {
@@ -580,4 +588,4 @@ export const generateHtmlReceipt = (data: Receipt): string => {
 
 </body>
 </html>`;
-};
+}

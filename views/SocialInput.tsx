@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 // SWITCHING TO REAL BACKEND
 import { FirebaseService } from '../services/firebase';
 import { Send, ThumbsUp, Image as ImageIcon, Clock, Trash2, Activity, Save, Calendar } from 'lucide-react';
-import { Announcement, SeasonStats } from '../types';
+import { Announcement, SeasonStats, SocialStats } from '../types';
 
 const SocialInput = () => {
   const [title, setTitle] = useState('');
@@ -18,6 +18,7 @@ const SocialInput = () => {
   // Data management
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [seasonStats, setSeasonStats] = useState<SeasonStats>({ seasonName: 'Season 1', startDate: '', played: 0, total: 0 });
+  const [socialStats, setSocialStats] = useState<SocialStats[]>([]);
 
   useEffect(() => {
       loadData();
@@ -29,6 +30,16 @@ const SocialInput = () => {
         setAnnouncements(a);
         const s = await FirebaseService.getSeasonStats();
         setSeasonStats(s);
+        
+        // Initialize Social Stats
+        const dbStats = await FirebaseService.getSocialStats();
+        const platforms = ['WhatsApp', 'Instagram', 'X', 'TikTok'];
+        const mergedStats = platforms.map(p => {
+            const existing = dbStats.find(s => s.platform === p);
+            return existing || { platform: p, followers: 0, engagementRate: 0, lastUpdated: '' };
+        });
+        setSocialStats(mergedStats);
+
       } catch (e) {
           console.error("Error loading social data", e);
       }
@@ -74,6 +85,18 @@ const SocialInput = () => {
   const updateSeasonStats = async () => {
       await FirebaseService.updateSeasonStats(seasonStats);
       alert("Season information updated!");
+  };
+
+  const handleStatChange = (platform: string, value: string) => {
+      setSocialStats(prev => prev.map(s => s.platform === platform ? { ...s, followers: Number(value) } : s));
+  };
+
+  const updateSingleStat = async (platform: string) => {
+      const statToUpdate = socialStats.find(s => s.platform === platform);
+      if (statToUpdate) {
+          await FirebaseService.updateSocialStats([statToUpdate]);
+          alert(`${platform} stats saved!`);
+      }
   };
 
   return (
@@ -273,12 +296,23 @@ const SocialInput = () => {
                 Social Follower Count
                 </h3>
                 <div className="space-y-4">
-                {['WhatsApp', 'Instagram', 'X', 'TikTok'].map(platform => (
-                    <div key={platform} className="p-3 border dark:border-gray-700 rounded bg-gray-50 dark:bg-gray-900/50">
-                        <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">{platform}</h4>
+                {socialStats.map(stat => (
+                    <div key={stat.platform} className="p-3 border dark:border-gray-700 rounded bg-gray-50 dark:bg-gray-900/50">
+                        <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">{stat.platform}</h4>
                         <div className="flex space-x-2">
-                            <input type="number" placeholder="Followers" className="w-2/3 p-2 text-sm border dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded" />
-                            <button className="w-1/3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-xs py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-600 font-medium dark:text-white">Update</button>
+                            <input 
+                                type="number" 
+                                placeholder="Followers" 
+                                value={stat.followers}
+                                onChange={(e) => handleStatChange(stat.platform, e.target.value)}
+                                className="w-2/3 p-2 text-sm border dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded" 
+                            />
+                            <button 
+                                onClick={() => updateSingleStat(stat.platform)}
+                                className="w-1/3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-xs py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-600 font-medium dark:text-white"
+                            >
+                                Update
+                            </button>
                         </div>
                     </div>
                 ))}
